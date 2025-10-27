@@ -52,18 +52,18 @@ class Table:
         self.seats = seats
         
     def has_free_spot(self) -> bool:
-        if len(self.seats) < self.capacity:
+        if len(self.seats) <= self.capacity:
             return True
         else:
             return False
         
     def assign_seat(self, name: str) -> None:
-        if self.has_free_spot():
+        while self.has_free_spot():
             self.__new_seat = Seat()
             self.__new_seat.set_occupant(name)
             self.seats.append(self.__new_seat)
-        else:
-            print("No free spots available at this table")
+            print(f"{name} has been assigned a seat.")
+            break
             
     def left_capacity(self) -> int:
         return self.capacity - len(self.seats)
