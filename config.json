@@ -1,0 +1,19 @@
+{
+  "input_file": "people.csv",
+  "output_file": "seating.csv",
+  "number_of_tables": 3,
+  "table_capacity": 4,
+  "auto_merge_lonely_tables": true,
+  "allow_dynamic_tables": true,
+  "allow_dynamic_people": true,
+  "preferences": {
+    "Michiel": {
+      "with": ["Anna"],
+      "without": ["Bryan"]
+    },
+    "Sandrine": {
+      "with": ["Frédéric"],
+      "without": []
+    }
+  }
+}
