@@ -1,6 +1,6 @@
 # Let's assign seats randomly!
 
-Update: this needs to be updated!
+![](https://img.shields.io/badge/Python-14354C?style=flat&logo=python&logoColor=white) ![](https://img.shields.io/badge/Markdown-000000?style=flat&logo=markdown&logoColor=white) ![](https://img.shields.io/badge/macOS-000000?style=flat&logo=apple&logoColor=white)
 
 ## The Programme  
 Imagine a conference room filled with tables and each table has a number of seats. Now imagine some people are going to this conference and we want to assign a seat to each of them randomly. How do we do that?  
@@ -22,8 +22,27 @@ The programme...
 🗝️ gives answers to questions:  
   - How many seats are there in the room?  
   - How many people are there in the room?  
-  - How many seats are free?  
-  
+  - How many seats are free?
+
+# Project Structure
+
+```markdown
+challenge-openspace-classifier
+├── LICENSE
+├── README.md
+├── config.json
+├── dev_notebook.ipynb
+├── main.py
+├── people.csv
+├── seating.csv
+└── src
+    ├── __pycache__
+    │   └── table.cpython-313.pyc
+    ├── openspace.py
+    ├── table.py
+    └── utils.py
+```
+
 ---  
   
 This repository is part of a two-day project at BeCode Data Science &amp; AI bootcamp 2025. 
