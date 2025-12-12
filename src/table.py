@@ -1,62 +1,65 @@
 # UTF-8 Python 3.13.5
-# Utility functions for seat and table classes
+# Table and Seat classes for Openspace Organisr
 # Author: Intan K. Wardhani
 
 class Seat:
-    """Represents a seat with an occupant and free/occupied status."""
-
-    def __init__(self) -> None:
+    """Represents a single seat in a table."""
+    def __init__(self):
         self.occupant = ""
         self.isfree = True
 
-    def set_occupant(self, name: str) -> None:
-        if self.isfree:
-            self.occupant = name
-            self.isfree = False
-        else:
-            print(f"Seat is already occupied by {self.occupant}.")
-
-    def remove_occupant(self) -> str:
-        if not self.isfree:
-            message = f"Removing occupant: {self.occupant}"
-            self.__init__()  # reset
-            return message
-        return "Seat is already free."
-
-    def __str__(self) -> str:
-        return f"Occupant: {self.occupant}, Free: {self.isfree}"
-
 
 class Table:
-    """A table that can hold multiple seats."""
+    """Represents a table with multiple seats."""
 
-    def __init__(self, capacity: int, seats: list = None) -> None:
+    def __init__(self, table_name: str, capacity: int, seats: list[Seat] | None = None):
+        """
+        Initialize a table.
+
+        Args:
+            table_name (str): Human-readable name for the table, e.g., "Table 1".
+            capacity (int): Maximum number of seats at the table.
+            seats (list[Seat], optional): Existing seats to initialize the table. Defaults to None.
+        """
+        self.table_name = table_name
         self.capacity = capacity
-        self.seats = seats if seats is not None else []
+        self.seats = seats if seats is not None else [Seat() for _ in range(capacity)]
 
     def has_free_spot(self) -> bool:
-        return len(self.seats) < self.capacity
+        """Check if there is at least one free seat."""
+        return any(seat.isfree for seat in self.seats)
 
     def assign_seat(self, name: str) -> bool:
-        """Try to assign a person to a free seat. Return True if successful."""
-        if self.has_free_spot():
-            new_seat = Seat()
-            new_seat.set_occupant(name)
-            self.seats.append(new_seat)
-            print(f"{name} has been assigned to a seat at a table.")
-            return True
+        """
+        Assign a person to the first available free seat.
+
+        Args:
+            name (str): Name of the person to assign.
+
+        Returns:
+            bool: True if assignment succeeded, False if table is full.
+        """
+        for seat in self.seats:
+            if seat.isfree:
+                seat.occupant = name
+                seat.isfree = False
+                return True
         return False
 
     def left_capacity(self) -> int:
-        return self.capacity - len(self.seats)
+        """Return the number of free seats remaining."""
+        return sum(1 for seat in self.seats if seat.isfree)
 
-    def occupants(self) -> list:
-        return [seat.occupant for seat in self.seats]
-    
+    def occupants(self) -> list[str]:
+        """Return a list of names of people currently seated."""
+        return [seat.occupant for seat in self.seats if seat.occupant is not None]
+
     def seat_names(self) -> list[str]:
-        """Return a list of names of people seated at this table."""
+        """Return a list of occupant names, None if empty."""
         return [seat.occupant for seat in self.seats]
 
-    def __str__(self) -> str:
-        occupants = [seat.occupant for seat in self.seats]
-        return f"Table (capacity: {self.capacity}, occupants: {occupants})"
+    def clear_assignments(self):
+        """Clear all assigned seats for reorganisation."""
+        for seat in self.seats:
+            seat.occupant = ""
+            seat.isfree = True
