@@ -31,13 +31,10 @@ openspace-organisr
 ├── LICENSE
 ├── README.md
 ├── config.json
-├── dev_notebook.ipynb
 ├── main.py
 ├── people.csv
 ├── seating.csv
 └── src
-    ├── __pycache__
-    │   └── table.cpython-313.pyc
     ├── openspace.py
     ├── table.py
     └── utils.py
