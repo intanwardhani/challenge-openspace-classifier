@@ -1,10 +1,6 @@
 # UTF-8 Python 3.13.5
 # Author: Intan K. Wardhani
 
-# =========================
-# openspace.py — PART 1/6
-# =========================
-
 import random
 from collections import defaultdict, deque
 
