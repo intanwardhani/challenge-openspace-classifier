@@ -304,27 +304,25 @@ class OpenSpace:
         # ------ Step 5: Seat clusters first ------
         clusters_sorted = sorted(clusters, key=lambda c: -len(c))  # largest first
         for cluster in clusters_sorted:
-            # Try to find a table with enough empty seats
             assigned = False
             for table in self.tables:
-                empty_seats = [i for i, p in table.assigned.items() if p is None]
-                if len(empty_seats) >= len(cluster):
-                    for seat_idx, person in zip(empty_seats, cluster):
-                        table.assigned[seat_idx] = person
+                if table.left_capacity() >= len(cluster):
+                    for person in cluster:
+                        table.assign_seat(person)
                     assigned = True
                     break
             if not assigned:
-                # No table can fit cluster fully → add new table if allowed
-                new_table_name = f"Table_{len(self.tables)+1}"
+                # No table can fit cluster → add new table
+                new_table_name = f"Table {len(self.tables)+1}"
                 capacity = self.config.get("table_capacity", 5)
-                from table import Table  # import here to avoid circular import
+                from table import Table
                 new_table = Table(new_table_name, capacity)
-                for seat_idx, person in enumerate(cluster):
-                    new_table.assigned[seat_idx] = person
+                for person in cluster:
+                    new_table.assign_seat(person)
                 self.tables.append(new_table)
 
         # ------ Step 6: Seat remaining single individuals ------
-        seated_people = set(p for table in self.tables for p in table.assigned.values() if p)
+        seated_people = set(p for table in self.tables for p in table.occupants())
         remaining_people = [p for p in self.people if p not in seated_people]
 
         random.shuffle(remaining_people)  # random placement for fairness
@@ -332,17 +330,14 @@ class OpenSpace:
         for person in remaining_people:
             table = self._find_table_for_person(person, preferences)
             if table:
-                for seat_idx, p in table.assigned.items():
-                    if p is None:
-                        table.assigned[seat_idx] = person
-                        break
+                table.assign_seat(person)
             else:
                 # Must add new table
-                new_table_name = f"Table_{len(self.tables)+1}"
+                new_table_name = f"Table {len(self.tables)+1}"
                 capacity = self.config.get("table_capacity", 5)
                 from table import Table
                 new_table = Table(new_table_name, capacity)
-                new_table.assigned[0] = person
+                new_table.assign_seat(person)
                 self.tables.append(new_table)
 
         # ------ Step 7: Soft balancing pass ------
