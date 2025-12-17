@@ -50,7 +50,7 @@ class OpenSpace:
         """
         occupants = set()
         for table in self.tables:
-            occupants.update(table.assigned.values())
+            occupants.update(seat.occupant for seat in table.seats if seat.occupant)
         return occupants
 
     def _refresh_seating(self):
@@ -62,12 +62,12 @@ class OpenSpace:
         self.previous_seating = {}
 
         for table in self.tables:
-            assigned_list = [p for p in table.assigned.values() if p]
-            self.a_whole_set.append((table.name, assigned_list))
+            assigned_list = [seat.occupant for seat in table.seats if seat.occupant]
+            self.a_whole_set.append((table.table_name, assigned_list))
 
-            for seat_index, person in table.assigned.items():
-                if person:
-                    self.previous_seating[person] = (table.name, seat_index)
+            for seat_index, seat in enumerate(table.seats):
+                if seat.occupant:
+                    self.previous_seating[seat.occupant] = (table.table_name, seat_index)
 
     def _reset_tables(self):
         """
@@ -81,7 +81,7 @@ class OpenSpace:
         Return the table object matching the given name.
         """
         for table in self.tables:
-            if table.name == name:
+            if table.table_name == name:
                 return table
         return None
 
@@ -96,9 +96,10 @@ class OpenSpace:
         forbidden = set(without_map.get(person, []))
 
         # anyone already at this table?
-        for seated_person in table.assigned.values():
-            if seated_person and seated_person in forbidden:
+        for seat in table.seats:
+            if seat.occupant and seat.occupant in forbidden:
                 return True
+
         return False
     
     # -------------------------
@@ -193,7 +194,7 @@ class OpenSpace:
         """
         for table in self.tables:
             # Skip table if full
-            if all(table.assigned.values()):
+            if all(seat.occupant for seat in table.seats):
                 continue
 
             # Check WITHOUT constraints
@@ -203,7 +204,8 @@ class OpenSpace:
             # If restricting to free people, ensure the table has only free individuals
             if free_people_only:
                 all_free = True
-                for p in table.assigned.values():
+                for seat in table.seats:
+                    p = seat.occupant
                     if p and (p in preferences.get("with", {}) or p in preferences.get("without", {})):
                         all_free = False
                         break
@@ -226,7 +228,8 @@ class OpenSpace:
 
         free_individuals = []
         for table in self.tables:
-            for seat_idx, person in table.assigned.items():
+            for _, seat in enumerate(table.seats):
+                person = seat.occupant
                 if not person:
                     continue
                 # Free = no WITH/WITHOUT OR singleton cluster
@@ -236,7 +239,7 @@ class OpenSpace:
                     clustered.add(person)
 
         # Compute average target table size
-        total_people = len([p for table in self.tables for p in table.assigned.values() if p])
+        total_people = len([seat.occupant for table in self.tables for seat in table.seats if seat.occupant])
         num_tables = len(self.tables)
         target_size = total_people // num_tables
         extra = total_people % num_tables  # tables allowed to have +1
@@ -244,31 +247,34 @@ class OpenSpace:
         # Build table -> assigned free people mapping
         table_free_map = defaultdict(list)
         for table in self.tables:
-            for seat_idx, person in table.assigned.items():
+            for seat_idx, seat in enumerate(table.seats):
+                person = seat.occupant
                 if person in free_individuals:
-                    table_free_map[table.name].append(person)
+                    table_free_map[table.table_name].append(person)
 
         # Attempt redistribution
         for table in self.tables:
-            current = len([p for p in table.assigned.values() if p])
+            current = len([seat.occupant for seat in table.seats if seat.occupant])
             allowed = target_size + (1 if extra > 0 else 0)
             if current > allowed:
                 # Move excess free people
                 excess = current - allowed
-                movable = [p for p in table.assigned.values() if p in free_individuals]
+                movable = [seat.occupant for seat in table.seats if seat.occupant in free_individuals]
                 for p in movable[:excess]:
                     dest_table = self._find_table_for_person(p, preferences, free_people_only=True)
                     if dest_table and dest_table.name != table.name:
                         # Swap/move
                         # Remove from current table
-                        for seat_idx, sp in table.assigned.items():
-                            if sp == p:
-                                table.assigned[seat_idx] = None
+                        for seat in table.seats:
+                            if seat.occupant == p:
+                                seat.occupant = ""
+                                seat.isfree = True
                                 break
                         # Assign to new table
-                        for seat_idx, sp in dest_table.assigned.items():
-                            if sp is None:
-                                dest_table.assigned[seat_idx] = p
+                        for seat in dest_table.seats:
+                            if seat.isfree:
+                                seat.occupant = p
+                                seat.isfree = False
                                 break
                 if extra > 0:
                     extra -= 1
@@ -345,6 +351,10 @@ class OpenSpace:
 
         # ------ Step 8: Refresh internal seating states ------
         self._refresh_seating()
+        
+        # ------ Step 9: Enable local variables for FileManager ------
+        self.removed_edges = removed_edges
+        self.clusters = clusters
     
     # -------------------------
     # Additional helpers
@@ -355,14 +365,105 @@ class OpenSpace:
         Print current seating for logging / debugging.
         """
         for table in self.tables:
-            seated = [p for p in table.assigned.values() if p]
-            print(f"{table.name}: {', '.join(seated)}")
+            seated = [seat.occupant for seat in table.seats if seat.occupant]
+            print(f"{table.table_name}: {', '.join(seated)}")
+            
+    def display(self) -> dict[str, list[str]]:
+        """
+        Print a compact, symmetric visual illustration of seating.
+        Visualisation is decorative and does not imply semantic seat geometry.
+
+        Returns:
+            dict[str, list[str]]: {table_name: [occupants]}
+        """
+        table_map = {}
+
+        for table in self.tables:
+            occupants = [seat.occupant for seat in table.seats]
+            capacity = len(occupants)
+            real_people = [p for p in occupants if p]
+
+            table_map[table.table_name] = real_people.copy()
+
+            # ---------- visual slot containers ----------
+            top_row: list[str] = []
+            bottom_row: list[str] = []
+            left_side: str = ""
+            right_side: str = ""
+
+            # ---------- placement order ----------
+            slots = []
+
+            # top row (grows left → right)
+            slots.append(("top",))
+            slots.append(("top",))
+
+            # bottom row (grows left → right)
+            slots.append(("bottom",))
+            slots.append(("bottom",))
+
+            # sides
+            slots.append(("left",))
+            slots.append(("right",))
+
+            # expand rows symmetrically if needed
+            while len(slots) < capacity:
+                slots.append(("top",))
+                slots.append(("bottom",))
+                slots.append(("left",))
+                slots.append(("right",))
+
+            # ---------- assign occupants to visual slots ----------
+            padded_people = occupants + [""] * (capacity - len(occupants))
+
+            for person, slot in zip(padded_people, slots):
+                target = slot[0]
+                if target == "top":
+                    top_row.append(person or "")
+                elif target == "bottom":
+                    bottom_row.append(person or "")
+                elif target == "left" and not left_side:
+                    left_side = person or ""
+                elif target == "right" and not right_side:
+                    right_side = person or ""
+
+            # ---------- formatting ----------
+            all_names = [p for p in occupants if p]
+            max_name_len = max((len(p) for p in all_names), default=1)
+            seat_width = max(max_name_len, 3)
+
+            def fmt(name: str) -> str:
+                return f"({name.center(seat_width)})"
+
+            top_str = " ".join(fmt(p) for p in top_row)
+            bottom_str = " ".join(fmt(p) for p in bottom_row)
+
+            left_str = fmt(left_side) if left_side else fmt("")
+            right_str = fmt(right_side) if right_side else fmt("")
+
+            table_label = f" {table.table_name} "
+            table_width = max(
+                len(top_str),
+                len(bottom_str),
+                len(table_label),
+            )
+
+            border = "-" * table_width
+            table_line = table_label.center(table_width)
+
+            # ---------- render ----------
+            print()
+            if top_row:
+                print(top_str.center(table_width))
+            print(f"{left_str} {border} {right_str}")
+            print(f"{left_str} {table_line} {right_str}")
+            print(f"{left_str} {border} {right_str}")
+            if bottom_row:
+                print(bottom_str.center(table_width))
+
+        return table_map
+
+
+
 
     # End of class OpenSpace
-
-
-
-
-
-
-

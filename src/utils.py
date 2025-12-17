@@ -31,101 +31,94 @@ class FileManager:
         return data
 
     @staticmethod
-    def to_csv(data: List[Dict[str, Any]], filename: str) -> None:
+    def to_csv(snapshot, filename: str) -> None:
         """
-        Export data to CSV.
+        Export seating snapshot to CSV.
 
         Parameters
         ----------
-        data : List[Dict[str, Any]]
-            List of row dictionaries to export.
+        snapshot : SeatingSnapshot
+            Normalised seating snapshot.
         filename : str
             Output filename. .csv will be appended if missing.
         """
         if not filename.lower().endswith(".csv"):
             filename += ".csv"
 
-        if not data:
-            raise ValueError("No data to export.")
+        rows = snapshot.rows()
 
-        fieldnames = data[0].keys()
+        if not rows:
+            raise ValueError("No seating data to export.")
+
+        fieldnames = rows[0].keys()
+
         with open(filename, "w", newline="", encoding="utf-8") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
-            for row in data:
+            for row in rows:
                 writer.writerow(row)
 
-    @staticmethod
-    def to_txt(open_space, preferences: Dict[str, Dict[str, List[str]]], filename: str) -> None:
-        """
-        Export the current seating and historical logs to a TXT file.
 
-        Includes:
-        - WITH groups
-        - WITHOUT constraints
-        - No preference people
-        - Broken preferences
-        - Final clusters
-        - Seating assignments
+    @staticmethod
+    def to_txt(snapshot, filename: str) -> None:
+        """
+        Export a verbose seating report to TXT.
 
         Parameters
         ----------
-        open_space : OpenSpace
-            The OpenSpace instance containing tables and seating info.
-        preferences : dict
-            The preferences dict with "with" and "without" info.
+        snapshot : SeatingSnapshot
+            Normalised snapshot of seating, preferences, and clusters.
         filename : str
             Output filename. .txt will be appended if missing.
         """
+        
         if not filename.lower().endswith(".txt"):
             filename += ".txt"
 
         with open(filename, "w", encoding="utf-8") as f:
-            # WITH groups
-            f.write("WITH groups:\n")
-            with_prefs = preferences.get("with", {})
-            if with_prefs:
-                for person, group in with_prefs.items():
+            # ---------- WITH preferences ----------
+            f.write("WITH preferences:\n")
+            if snapshot.with_prefs:
+                for person, group in snapshot.with_prefs.items():
                     f.write(f"  {person}: {', '.join(group)}\n")
             else:
                 f.write("  (none)\n")
 
-            # WITHOUT constraints
-            f.write("WITHOUT constraints:\n")
-            without_prefs = preferences.get("without", {})
-            if without_prefs:
-                for person, group in without_prefs.items():
+            # ---------- WITHOUT preferences ----------
+            f.write("\nWITHOUT preferences:\n")
+            if snapshot.without_prefs:
+                for person, group in snapshot.without_prefs.items():
                     f.write(f"  {person}: {', '.join(group)}\n")
             else:
                 f.write("  (none)\n")
 
-            # No-preference people
-            no_prefs = [p for p in open_space.people if p not in with_prefs and p not in without_prefs]
-            f.write("No preferences:\n")
-            if no_prefs:
-                f.write(f"  {', '.join(no_prefs)}\n")
+            # ---------- No-preference people ----------
+            f.write("\nNo preferences:\n")
+            if snapshot.no_preferences:
+                f.write(f"  {', '.join(snapshot.no_preferences)}\n")
             else:
                 f.write("  (none)\n")
 
-            # Broken preferences / removed edges
-            f.write("Broken preferences:\n")
-            if hasattr(open_space, "removed_edges") and open_space.removed_edges:
-                for a, b in open_space.removed_edges:
+            # ---------- Broken preferences ----------
+            f.write("\nBroken preferences:\n")
+            if snapshot.broken_preferences:
+                for a, b in snapshot.broken_preferences:
                     f.write(f"  {a} cannot sit with {b}\n")
             else:
                 f.write("  (none)\n")
 
-            # Final clusters
-            f.write("Final clusters:\n")
-            if hasattr(open_space, "clusters") and open_space.clusters:
-                for idx, cluster in enumerate(open_space.clusters, start=1):
+            # ---------- Final clusters ----------
+            f.write("\nFinal clusters:\n")
+            if snapshot.clusters:
+                for idx, cluster in enumerate(snapshot.clusters, start=1):
                     f.write(f"  Group {idx}: {', '.join(cluster)}\n")
             else:
                 f.write("  (none)\n")
 
-            # Seating assignments
-            f.write("Seating assignments:\n")
-            for table in open_space.tables:
-                seated = [p for p in table.assigned.values() if p]
-                seated_str = ", ".join(seated) if seated else "(empty)"
-                f.write(f"  {table.name}: {seated_str}\n")
+            # ---------- Seating assignments ----------
+            f.write("\nSeating assignments:\n")
+            for table_id, people in snapshot.by_table().items():
+                seated = ", ".join(people) if people else "(empty)"
+                f.write(f"  Table {table_id}: {seated}\n")
+
+
