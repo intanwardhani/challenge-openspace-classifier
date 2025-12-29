@@ -86,7 +86,7 @@ class FileManager:
 
             # ---------- WITHOUT preferences ----------
             f.write("\nWITHOUT preferences:\n")
-            if snapshot.without_prefs:
+            if snapshot.rows["WithoutPref"]:
                 for person, group in snapshot.without_prefs.items():
                     f.write(f"  {person}: {', '.join(group)}\n")
             else:

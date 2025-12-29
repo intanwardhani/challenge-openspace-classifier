@@ -75,7 +75,7 @@ def run_organisation(config: Dict[str, Any]) -> None:
 
     # ---------- Load people ----------
     people_data = FileManager.from_csv(config["input_file"])
-    people = [row["name"] for row in people_data]
+    people = [row['name'] for row in people_data]
 
     preferences = config.get("preferences", {})
 

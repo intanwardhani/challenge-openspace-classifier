@@ -321,7 +321,7 @@ class OpenSpace:
                 # No table can fit cluster → add new table
                 new_table_name = f"Table {len(self.tables)+1}"
                 capacity = self.config.get("table_capacity", 5)
-                from table import Table
+                from src.table import Table
                 new_table = Table(new_table_name, capacity)
                 for person in cluster:
                     new_table.assign_seat(person)
@@ -341,7 +341,7 @@ class OpenSpace:
                 # Must add new table
                 new_table_name = f"Table {len(self.tables)+1}"
                 capacity = self.config.get("table_capacity", 5)
-                from table import Table
+                from src.table import Table
                 new_table = Table(new_table_name, capacity)
                 new_table.assign_seat(person)
                 self.tables.append(new_table)

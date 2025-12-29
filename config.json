@@ -1,7 +1,16 @@
 {
   "input_file": "people.csv",
   "output_file": "seating.txt",
-  "number_of_tables": 2,
-  "table_capacity": 2,
-  "preferences": {}
+  "number_of_tables": 5,
+  "table_capacity": 4,
+  "preferences": {
+    "with": {
+      "Michiel": ["Anna"],
+      "Sandrine": ["Frédéric"]
+    },
+    "without": {
+      "Michiel": ["Bryan"],
+      "Sandrine": ["Nancy"]
+    }
+  }
 }
